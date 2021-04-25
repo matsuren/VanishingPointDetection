@@ -87,37 +87,79 @@ void drawClusters( cv::Mat &img, std::vector<std::vector<double> > &lines, std::
 			cv::Point pt_e = cv::Point( lines[idx][2], lines[idx][3] );
 			cv::Point pt_m = ( pt_s + pt_e ) * 0.5;
 
-			cv::line( img, pt_s, pt_e, lineColors[i], 2, CV_AA );
+			cv::line( img, pt_s, pt_e, lineColors[i], 2,  cv::LINE_AA );
 		}
 	}
 }
 
-void main()
+
+int simpleExample(std::string inPutImage){
+
+    cv::Mat image= cv::imread( inPutImage );
+    if ( image.empty() )
+    {
+        std::cout << "Load image error : " << inPutImage << std::endl;
+    }
+
+    // LSD line segment detection
+    double thLength = 30.0;
+    std::vector<std::vector<double> > lines;
+    LineDetect( image, thLength, lines );
+
+    // Camera internal parameters
+    cv::Point2d pp( image.cols/2, image.rows/2 );        // Principle point (in pixel)
+    double f = 1.2*(std::max(image.cols, image.rows));          // Focal length (in pixel)
+
+    // Vanishing point detection
+    std::vector<cv::Point3d> vps;              // Detected vanishing points (in pixel)
+    std::vector<std::vector<int> > clusters;   // Line segment clustering results of each vanishing point
+    VPDetection detector;
+    detector.run( lines, pp, f, vps, clusters );
+
+    drawClusters( image, lines, clusters );
+    imshow("",image);
+    cv::waitKey( 0 );
+    return 0;
+}
+
+int webcamExample(int cam_id){
+    cv::VideoCapture cap;
+    cap.open(cam_id);
+
+    while (true){
+        Mat image;
+        cap >> image;
+        if( image.empty() ) break;
+
+        // LSD line segment detection
+        double thLength = 30.0;
+        std::vector<std::vector<double> > lines;
+        LineDetect( image, thLength, lines );
+
+        // Camera internal parameters
+        cv::Point2d pp( image.cols/2, image.rows/2 );        // Principle point (in pixel)
+        double f = 1.2*(std::max(image.cols, image.rows));          // Focal length (in pixel)
+
+        // Vanishing point detection
+        std::vector<cv::Point3d> vps;              // Detected vanishing points (in pixel)
+        std::vector<std::vector<int> > clusters;   // Line segment clustering results of each vanishing point
+        VPDetection detector;
+        detector.run( lines, pp, f, vps, clusters );
+
+        drawClusters( image, lines, clusters );
+        imshow("vp",image);
+        if(cv::waitKey( 10 )==27)
+            break;
+    }
+
+    return 0;
+}
+
+int main()
 {
-	string inPutImage = "D:\\DevelopCenter\\VanishingPoints\\datasets\\YorkUrbanDB\\P1020171\\P1020171.jpg";
+    std::string inPutImage = "../P1020171.jpg";
+    simpleExample(inPutImage);
 
-	cv::Mat image= cv::imread( inPutImage );
-	if ( image.empty() )
-	{
-		printf( "Load image error : %s\n", inPutImage );
-	}
-
-	// LSD line segment detection
-	double thLength = 30.0;
-	std::vector<std::vector<double> > lines;
-	LineDetect( image, thLength, lines );
-
-	// Camera internal parameters
-	cv::Point2d pp( 307, 251 );        // Principle point (in pixel)
-	double f = 6.053 / 0.009;          // Focal length (in pixel)
-
-	// Vanishing point detection
-	std::vector<cv::Point3d> vps;              // Detected vanishing points (in pixel)
-	std::vector<std::vector<int> > clusters;   // Line segment clustering results of each vanishing point
-	VPDetection detector;
-	detector.run( lines, pp, f, vps, clusters );
-
-	drawClusters( image, lines, clusters );
-	imshow("",image);
-	cv::waitKey( 0 );
+    webcamExample(0);
+	return 0;
 }
